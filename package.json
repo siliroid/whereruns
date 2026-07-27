@@ -1,0 +1,10 @@
+{
+  "name": "whereruns",
+  "version": "0.1.0",
+  "description": "Before you reason about a file, find out where it actually executes.",
+  "bin": { "whereruns": "./whereruns.js" },
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/siliroid/whereruns.git" },
+  "keywords": ["drift","provenance","deploy","agents","verification"],
+  "engines": { "node": ">=18" }
+}
