@@ -100,22 +100,15 @@ function human(n) {
   return n.toLocaleString('en-US');
 }
 
-function main() {
-  const args = process.argv.slice(2);
-  const target = args.find((a) => !a.startsWith('--'));
-  if (!target) {
-    console.error('usage: whereruns <path> [--roots a,b] [--json] [--quiet]');
-    process.exit(2);
-  }
-  const asJson = args.includes('--json');
-  const quiet = args.includes('--quiet');
-  const ri = args.indexOf('--roots');
-  const roots = ri !== -1 && args[ri + 1] ? args[ri + 1].split(',') : defaultRoots(target);
-
+// The whole check, with no I/O of its own. The CLI prints it and the MCP server returns
+// it — one implementation behind two front doors, because the day they diverge is the day
+// the agent gets a different answer than the human and neither of them finds out.
+function inspect(target, rootsArg) {
   const unreachable = [];
   const self = path.resolve(normalizeRoot(target));
-  if (!fs.existsSync(self)) { console.error(`⛔ no such file: ${target}`); process.exit(2); }
+  if (!fs.existsSync(self)) return { ok: false, why: `no such file: ${target}` };
 
+  const roots = rootsArg && rootsArg.length ? rootsArg : defaultRoots(target);
   const selfStat = fs.statSync(self);
   const selfHash = sha(self);
   const copies = findByName(roots, path.basename(self), self, unreachable).map((p) => {
@@ -131,6 +124,37 @@ function main() {
       ageDays: Math.round((selfStat.mtime - st.mtime) / 86400000),
     };
   });
+  return {
+    ok: true,
+    target: self,
+    sha: selfHash,
+    bytes: selfStat.size,
+    mtime: selfStat.mtime,
+    roots,
+    copies,
+    drifted: copies.filter((c) => !c.identical),
+    unreachable,
+  };
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const target = args.find((a) => !a.startsWith('--'));
+  if (!target) {
+    console.error('usage: whereruns <path> [--roots a,b] [--json] [--quiet]');
+    process.exit(2);
+  }
+  const asJson = args.includes('--json');
+  const quiet = args.includes('--quiet');
+  const ri = args.indexOf('--roots');
+
+  const r = inspect(target, ri !== -1 && args[ri + 1] ? args[ri + 1].split(',') : null);
+  if (!r.ok) { console.error(`⛔ ${r.why}`); process.exit(2); }
+  const { self, selfStat, selfHash, copies, unreachable } = {
+    self: r.target, selfStat: { mtime: r.mtime, size: r.bytes }, selfHash: r.sha,
+    copies: r.copies, unreachable: r.unreachable,
+  };
+  const roots = r.roots;
 
   const drifted = copies.filter((c) => !c.identical);
 
@@ -170,4 +194,10 @@ function main() {
   process.exit(drifted.length ? 1 : 0);
 }
 
-main();
+// Only run as a CLI. Without this guard, `require('./whereruns.js')` executes main(),
+// which prints usage and exits — so the MCP server died on import, silently, before it
+// could answer a single call. A module that does something on import is a module that
+// cannot be reused, and reuse was the entire point of splitting inspect() out.
+if (require.main === module) main();
+
+module.exports = { inspect, defaultRoots, normalizeRoot };
