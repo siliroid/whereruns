@@ -147,6 +147,18 @@ function report(label, total, c) {
       return null;
     });
     console.log(`  ${targets.size} distinct internal targets`);
+    // ⛔ Zero extracted targets is a FAILED MEASUREMENT, not a clean result. The first
+    // version printed "✓ clean" over it — on a JS-rendered site where the raw HTML carries
+    // no hrefs at all, so the crawler saw nothing and reported the same as a crawler that
+    // saw everything and found nothing wrong. That is the exact bug class this tool exists
+    // to catch, shipped inside the tool. Say inconclusive and exit non-zero.
+    if (targets.size === 0) {
+      console.log('\n  ⚠ INCONCLUSIVE — extracted no links at all.');
+      console.log('    The pages returned HTML with no href="/..." in it, which almost always');
+      console.log('    means client-side rendering. This tool reads raw HTML and cannot see');
+      console.log('    those links. It has NOT checked anything. Do not read this as clean.');
+      process.exit(3);
+    }
     const results = await pool([...targets.keys()], (u) => req(u, 'HEAD'));
     const c = classify(results);
     report('DOCS SITE', results.length, c);
