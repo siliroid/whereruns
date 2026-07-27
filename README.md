@@ -9,6 +9,30 @@ npx whereruns src/handler.js
 No dependencies. One file. Exits non-zero on drift, so it works as a CI gate or as a
 precondition an agent can call before it starts thinking.
 
+## For agents — the actual customer
+
+A coding agent does not shell out and read stdout. It calls tools. So the check has a
+second front door:
+
+```
+claude mcp add whereruns -- node /path/to/whereruns/mcp.js
+```
+
+One tool, described so the model knows *when* to reach for it: before reasoning about or
+editing a file that might have a deployed copy. It returns `isError: true` on drift — an
+agent that only checks the flag still stops; one that reads the text gets paths and byte
+counts.
+
+**The failure it prevents is specific and expensive.** An agent reads a file, reasons about
+it correctly, edits it correctly — against bytes that are not the bytes running in
+production. Nothing throws. Every tool call in the transcript is real and succeeds. A
+guardrail that audits tool calls signs off on all of it, **because the mistake was made
+before the first call: choosing which file to open.**
+
+That used to be cheap, because the reader of a file was usually the person who deployed it
+and carried the map in their head. The primary reader now has no ambient deploy context, no
+memory of Tuesday staging, very high confidence, and write access.
+
 ---
 
 ## The question
