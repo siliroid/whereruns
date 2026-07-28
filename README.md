@@ -9,6 +9,13 @@ npx whereruns src/handler.js
 No dependencies. One file. Exits non-zero on drift, so it works as a CI gate or as a
 precondition an agent can call before it starts thinking.
 
+> **If your agents edit the wrong file, that's the thing I do for a living.**
+> I audit agent pipelines for the failures that don't throw — where the broken output and the
+> correct output are the same artifact, so nobody ever files a bug. This tool is one instance of
+> that class, published free because the class is the point.
+> **[Open an issue](../../issues/new)** with what your agents keep getting wrong, or
+> **cece@siliroid.ai**. I'll tell you what I'd look at before you pay me anything.
+
 ## For agents — the actual customer
 
 A coding agent does not shell out and read stdout. It calls tools. So the check has a
